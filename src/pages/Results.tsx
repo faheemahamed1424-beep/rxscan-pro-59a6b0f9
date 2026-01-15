@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CheckCircle2, Info, Bell, Save, ArrowLeft, AlertCircle } from "lucide-react";
+import { CheckCircle2, Info, Bell, Save, ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { PageTransition } from "@/components/PageTransition";
 import { ScanResult, Medicine } from "@/hooks/usePrescriptionScan";
+import { useSavePrescription } from "@/hooks/usePrescriptions";
+import { useToast } from "@/hooks/use-toast";
 
 const Results = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const savePrescription = useSavePrescription();
 
   useEffect(() => {
     const storedResult = sessionStorage.getItem('scanResult');
@@ -24,11 +28,36 @@ const Results = () => {
   const medicines = scanResult?.medicines || [];
   const confidence = scanResult?.confidence || 0;
 
-  const handleSave = () => {
-    // In a real app, you'd save to the database here
-    sessionStorage.removeItem('scanResult');
-    sessionStorage.removeItem('scannedImage');
-    navigate("/prescriptions");
+  const handleSave = async () => {
+    if (!scanResult || medicines.length === 0) return;
+
+    try {
+      await savePrescription.mutateAsync({
+        medicines: medicines.map(m => ({
+          name: m.name,
+          dosage: m.dosage,
+          frequency: m.frequency,
+          duration: m.duration,
+        })),
+        confidence_score: confidence,
+        raw_text: scanResult.rawText || "",
+      });
+
+      toast({
+        title: "Saved!",
+        description: "Prescription saved to your account",
+      });
+
+      sessionStorage.removeItem('scanResult');
+      sessionStorage.removeItem('scannedImage');
+      navigate("/prescriptions");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save prescription",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -183,13 +212,20 @@ const Results = () => {
               </motion.button>
 
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: savePrescription.isPending ? 1 : 1.02 }}
+                whileTap={{ scale: savePrescription.isPending ? 1 : 0.98 }}
                 onClick={handleSave}
+                disabled={savePrescription.isPending}
                 className="action-card flex flex-col items-center gap-2 py-4 gradient-bg"
               >
-                <Save className="w-6 h-6 text-white" />
-                <span className="text-sm font-medium text-white">Save</span>
+                {savePrescription.isPending ? (
+                  <Loader2 className="w-6 h-6 text-white animate-spin" />
+                ) : (
+                  <Save className="w-6 h-6 text-white" />
+                )}
+                <span className="text-sm font-medium text-white">
+                  {savePrescription.isPending ? "Saving..." : "Save"}
+                </span>
               </motion.button>
             </motion.div>
           )}

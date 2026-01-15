@@ -1,19 +1,73 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Stethoscope, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Stethoscope, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { signIn, signUp, user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate("/dashboard");
+    }
+  }, [user, authLoading, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/dashboard");
+    
+    if (!email || !password) {
+      toast({
+        title: "Error",
+        description: "Please enter email and password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      if (isSignUp) {
+        const { error } = await signUp(email, password);
+        if (error) throw error;
+        toast({
+          title: "Account created!",
+          description: "You're now logged in.",
+        });
+      } else {
+        const { error } = await signIn(email, password);
+        if (error) throw error;
+      }
+      navigate("/dashboard");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Authentication failed",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen gradient-bg flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
@@ -45,7 +99,7 @@ const Login = () => {
             transition={{ delay: 0.3 }}
             className="glass-card rounded-3xl p-8"
           >
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Email</label>
                 <div className="relative">
@@ -56,6 +110,7 @@ const Login = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     className="input-medical pl-12"
                     placeholder="john@example.com"
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -70,6 +125,7 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     className="input-medical pl-12 pr-12"
                     placeholder="••••••••"
+                    disabled={loading}
                   />
                   <button
                     type="button"
@@ -81,31 +137,40 @@ const Login = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="rounded border-border" />
-                  <span className="text-muted-foreground">Remember me</span>
-                </label>
-                <a href="#" className="text-primary hover:underline">
-                  Forgot password?
-                </a>
-              </div>
+              {!isSignUp && (
+                <div className="flex items-center justify-between text-sm">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="rounded border-border" />
+                    <span className="text-muted-foreground">Remember me</span>
+                  </label>
+                  <a href="#" className="text-primary hover:underline">
+                    Forgot password?
+                  </a>
+                </div>
+              )}
 
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: loading ? 1 : 1.02 }}
+                whileTap={{ scale: loading ? 1 : 0.98 }}
                 type="submit"
-                className="w-full btn-gradient text-lg"
+                disabled={loading}
+                className="w-full btn-gradient text-lg flex items-center justify-center gap-2"
               >
-                Login
+                {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+                {isSignUp ? "Create Account" : "Login"}
               </motion.button>
             </form>
 
             <div className="mt-6 text-center">
-              <span className="text-muted-foreground">New user? </span>
-              <a href="#" className="text-primary font-medium hover:underline">
-                Create an account
-              </a>
+              <span className="text-muted-foreground">
+                {isSignUp ? "Already have an account? " : "New user? "}
+              </span>
+              <button
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-primary font-medium hover:underline"
+              >
+                {isSignUp ? "Login" : "Create an account"}
+              </button>
             </div>
           </motion.div>
 

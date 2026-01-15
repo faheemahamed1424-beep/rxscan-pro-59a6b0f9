@@ -1,46 +1,16 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Search, Filter, Plus, Calendar, Pill } from "lucide-react";
+import { ArrowLeft, Search, Filter, Plus, Calendar, Pill, Trash2 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { PageTransition } from "@/components/PageTransition";
-
-const prescriptions = [
-  {
-    id: 1,
-    name: "General Checkup",
-    doctor: "Dr. Sarah Wilson",
-    date: "Jan 10, 2025",
-    medicines: 3,
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "Dental Treatment",
-    doctor: "Dr. Michael Chen",
-    date: "Jan 5, 2025",
-    medicines: 2,
-    status: "active",
-  },
-  {
-    id: 3,
-    name: "Allergy Treatment",
-    doctor: "Dr. Emily Brown",
-    date: "Dec 28, 2024",
-    medicines: 1,
-    status: "completed",
-  },
-  {
-    id: 4,
-    name: "Eye Checkup",
-    doctor: "Dr. James Lee",
-    date: "Dec 15, 2024",
-    medicines: 2,
-    status: "completed",
-  },
-];
+import { usePrescriptions } from "@/hooks/usePrescriptions";
+import { format } from "date-fns";
 
 const Prescriptions = () => {
   const navigate = useNavigate();
+  const { data: prescriptions = [], isLoading } = usePrescriptions();
+
+  const totalMedicines = prescriptions.reduce((acc, p) => acc + p.medicines.length, 0);
 
   return (
     <div className="page-container bg-background">
@@ -95,22 +65,26 @@ const Prescriptions = () => {
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-2">
                 <Pill className="w-5 h-5 text-primary" />
               </div>
-              <p className="text-2xl font-bold text-foreground">8</p>
+              <p className="text-2xl font-bold text-foreground">{totalMedicines}</p>
               <p className="text-xs text-muted-foreground">Total Meds</p>
             </div>
             <div className="glass-card-solid rounded-2xl p-4 text-center">
               <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center mx-auto mb-2">
                 <span className="text-lg">✅</span>
               </div>
-              <p className="text-2xl font-bold text-foreground">2</p>
-              <p className="text-xs text-muted-foreground">Active</p>
+              <p className="text-2xl font-bold text-foreground">{prescriptions.length}</p>
+              <p className="text-xs text-muted-foreground">Scans</p>
             </div>
             <div className="glass-card-solid rounded-2xl p-4 text-center">
               <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center mx-auto mb-2">
                 <Calendar className="w-5 h-5 text-muted-foreground" />
               </div>
-              <p className="text-2xl font-bold text-foreground">4</p>
-              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="text-2xl font-bold text-foreground">
+                {prescriptions.length > 0 
+                  ? Math.round(prescriptions.reduce((acc, p) => acc + (p.confidence_score || 0), 0) / prescriptions.length)
+                  : 0}%
+              </p>
+              <p className="text-xs text-muted-foreground">Avg Conf.</p>
             </div>
           </motion.div>
         </div>
@@ -119,55 +93,74 @@ const Prescriptions = () => {
         <div className="px-6">
           <h2 className="section-header">All Prescriptions</h2>
 
-          <div className="space-y-4">
-            {prescriptions.map((prescription, index) => (
-              <motion.div
-                key={prescription.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 + index * 0.1 }}
-                whileHover={{ scale: 1.01 }}
-                onClick={() => navigate("/results")}
-                className="glass-card-solid rounded-2xl p-4 cursor-pointer"
+          {isLoading ? (
+            <div className="text-center py-12">
+              <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
+              <p className="text-muted-foreground mt-4">Loading prescriptions...</p>
+            </div>
+          ) : prescriptions.length === 0 ? (
+            <div className="text-center py-12 glass-card-solid rounded-2xl">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">📋</span>
+              </div>
+              <p className="text-muted-foreground mb-4">No prescriptions yet</p>
+              <button
+                onClick={() => navigate("/upload")}
+                className="btn-gradient px-6 py-3 rounded-xl font-medium"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                        prescription.status === "active"
-                          ? "bg-primary/10"
-                          : "bg-muted"
-                      }`}
-                    >
-                      <span className="text-2xl">📋</span>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">{prescription.name}</h3>
-                      <p className="text-sm text-muted-foreground">{prescription.doctor}</p>
-                      <div className="flex items-center gap-3 mt-2">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {prescription.date}
-                        </span>
-                        <span className="text-xs text-primary font-medium">
-                          {prescription.medicines} medicines
-                        </span>
+                Scan Your First Prescription
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {prescriptions.map((prescription, index) => (
+                <motion.div
+                  key={prescription.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 + index * 0.1 }}
+                  whileHover={{ scale: 1.01 }}
+                  onClick={() => {
+                    sessionStorage.setItem('scanResult', JSON.stringify({
+                      medicines: prescription.medicines.map((m, i) => ({ ...m, id: i })),
+                      confidence: prescription.confidence_score,
+                      rawText: prescription.raw_text,
+                    }));
+                    navigate("/results");
+                  }}
+                  className="glass-card-solid rounded-2xl p-4 cursor-pointer"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <span className="text-2xl">📋</span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground">
+                          {prescription.medicines[0]?.name || "Prescription"}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {prescription.medicines.length} medicine{prescription.medicines.length !== 1 ? "s" : ""}
+                        </p>
+                        <div className="flex items-center gap-3 mt-2">
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {format(new Date(prescription.scan_date), "MMM d, yyyy")}
+                          </span>
+                          <span className="text-xs text-primary font-medium">
+                            {prescription.confidence_score}% confidence
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    <span className="status-badge status-success">
+                      Saved
+                    </span>
                   </div>
-                  <span
-                    className={`status-badge ${
-                      prescription.status === "active"
-                        ? "status-success"
-                        : "status-pending"
-                    }`}
-                  >
-                    {prescription.status === "active" ? "Active" : "Completed"}
-                  </span>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </PageTransition>
 

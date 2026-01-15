@@ -14,7 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      prescriptions: {
+        Row: {
+          confidence_score: number | null
+          created_at: string
+          id: string
+          image_url: string | null
+          medicines: Json
+          raw_text: string | null
+          scan_date: string
+          user_id: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          medicines?: Json
+          raw_text?: string | null
+          scan_date?: string
+          user_id?: string
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          medicines?: Json
+          raw_text?: string | null
+          scan_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
