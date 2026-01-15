@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { Camera, Bell, FileText, Settings, Clock, ChevronRight } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { PageTransition } from "@/components/PageTransition";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePrescriptions } from "@/hooks/usePrescriptions";
 
 const actionCards = [
   {
@@ -35,32 +37,17 @@ const actionCards = [
   },
 ];
 
-const recentPrescriptions = [
-  {
-    id: 1,
-    name: "Amoxicillin 500mg",
-    daysLeft: 3,
-    status: "active",
-    dosage: "Twice daily",
-  },
-  {
-    id: 2,
-    name: "Paracetamol 650mg",
-    daysLeft: 1,
-    status: "ending",
-    dosage: "3 times daily",
-  },
-  {
-    id: 3,
-    name: "Vitamin D3",
-    daysLeft: 15,
-    status: "active",
-    dosage: "Once daily",
-  },
-];
-
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { data: prescriptions = [], isLoading } = usePrescriptions();
+
+  // Get user's first name from email
+  const userName = user?.email?.split("@")[0] || "there";
+  const displayName = userName.charAt(0).toUpperCase() + userName.slice(1);
+
+  // Get recent prescriptions (last 3)
+  const recentPrescriptions = prescriptions.slice(0, 3);
 
   return (
     <div className="page-container bg-background">
@@ -74,7 +61,7 @@ const Dashboard = () => {
           >
             <p className="text-white/80 text-sm">Welcome back,</p>
             <h1 className="text-2xl font-bold text-white mt-1">
-              Hi John! 👋
+              Hi {displayName}! 👋
             </h1>
           </motion.div>
         </div>
@@ -113,7 +100,7 @@ const Dashboard = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
           >
-            <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4">
               <h2 className="section-header mb-0">Recent Prescriptions</h2>
               <button
                 onClick={() => navigate("/prescriptions")}
@@ -123,42 +110,57 @@ const Dashboard = () => {
               </button>
             </div>
 
-            <div className="space-y-3">
-              {recentPrescriptions.map((prescription, index) => (
-                <motion.div
-                  key={prescription.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.7 + index * 0.1 }}
-                  onClick={() => navigate("/medicine-details")}
-                  className="medicine-row cursor-pointer"
+            {isLoading ? (
+              <div className="text-center py-8">
+                <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
+              </div>
+            ) : recentPrescriptions.length === 0 ? (
+              <div className="text-center py-8 glass-card-solid rounded-2xl">
+                <p className="text-muted-foreground">No prescriptions yet</p>
+                <button
+                  onClick={() => navigate("/upload")}
+                  className="text-primary font-medium mt-2 hover:underline"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <span className="text-lg">💊</span>
+                  Scan your first prescription
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentPrescriptions.map((prescription, index) => (
+                  <motion.div
+                    key={prescription.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.7 + index * 0.1 }}
+                    onClick={() => navigate("/medicine-details")}
+                    className="medicine-row cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <span className="text-lg">💊</span>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-foreground">
+                          {prescription.medicines[0]?.name || "Prescription"}
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {prescription.medicines.length} medicine{prescription.medicines.length !== 1 ? "s" : ""}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-medium text-foreground">{prescription.name}</h4>
-                      <p className="text-sm text-muted-foreground">{prescription.dosage}</p>
+                    <div className="text-right">
+                      <div className="status-badge status-success">
+                        <Clock className="w-3 h-3 inline mr-1" />
+                        {new Date(prescription.scan_date).toLocaleDateString()}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div
-                      className={`status-badge ${
-                        prescription.daysLeft <= 2 ? "status-warning" : "status-success"
-                      }`}
-                    >
-                      <Clock className="w-3 h-3 inline mr-1" />
-                      {prescription.daysLeft} days left
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </motion.div>
         </div>
 
-        {/* Quick Stats */}
         <div className="px-6 mt-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -166,21 +168,27 @@ const Dashboard = () => {
             transition={{ delay: 0.9 }}
             className="glass-card-solid rounded-2xl p-6"
           >
-            <h3 className="font-semibold text-foreground mb-4">Today's Progress</h3>
+            <h3 className="font-semibold text-foreground mb-4">Your Stats</h3>
             <div className="flex items-center justify-between">
               <div className="text-center">
-                <div className="text-2xl font-bold text-success">4/6</div>
-                <p className="text-sm text-muted-foreground">Doses taken</p>
+                <div className="text-2xl font-bold text-primary">{prescriptions.length}</div>
+                <p className="text-sm text-muted-foreground">Total Scans</p>
               </div>
               <div className="h-12 w-px bg-border" />
               <div className="text-center">
-                <div className="text-2xl font-bold text-primary">3</div>
-                <p className="text-sm text-muted-foreground">Active meds</p>
+                <div className="text-2xl font-bold text-success">
+                  {prescriptions.reduce((acc, p) => acc + p.medicines.length, 0)}
+                </div>
+                <p className="text-sm text-muted-foreground">Medicines</p>
               </div>
               <div className="h-12 w-px bg-border" />
               <div className="text-center">
-                <div className="text-2xl font-bold text-warning">2</div>
-                <p className="text-sm text-muted-foreground">Upcoming</p>
+                <div className="text-2xl font-bold text-warning">
+                  {prescriptions.length > 0 
+                    ? Math.round(prescriptions.reduce((acc, p) => acc + (p.confidence_score || 0), 0) / prescriptions.length)
+                    : 0}%
+                </div>
+                <p className="text-sm text-muted-foreground">Avg Confidence</p>
               </div>
             </div>
           </motion.div>
