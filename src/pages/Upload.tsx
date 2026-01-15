@@ -1,15 +1,18 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Image, Upload as UploadIcon, X, ArrowLeft, Scan } from "lucide-react";
+import { Camera, Image, X, ArrowLeft, Scan, Loader2 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { PageTransition } from "@/components/PageTransition";
+import { usePrescriptionScan } from "@/hooks/usePrescriptionScan";
+import { toast } from "sonner";
 
 const UploadPage = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const { scanPrescription, isScanning } = usePrescriptionScan();
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -35,9 +38,20 @@ const UploadPage = () => {
     }
   };
 
-  const handleAnalyze = () => {
-    if (selectedImage) {
-      navigate("/processing");
+  const handleAnalyze = async () => {
+    if (!selectedImage) return;
+
+    try {
+      const result = await scanPrescription(selectedImage);
+      
+      // Store result in sessionStorage for the results page
+      sessionStorage.setItem('scanResult', JSON.stringify(result));
+      sessionStorage.setItem('scannedImage', selectedImage);
+      
+      navigate("/processing", { state: { imageBase64: selectedImage } });
+    } catch (error) {
+      console.error('Scan error:', error);
+      toast.error('Failed to scan prescription. Please try again.');
     }
   };
 
@@ -65,7 +79,8 @@ const UploadPage = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => fileInputRef.current?.click()}
-              className="action-card gradient-bg text-center"
+              disabled={isScanning}
+              className="action-card gradient-bg text-center disabled:opacity-50"
             >
               <Camera className="w-8 h-8 text-white mx-auto mb-2" />
               <span className="font-semibold text-white">Camera</span>
@@ -75,7 +90,8 @@ const UploadPage = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => fileInputRef.current?.click()}
-              className="action-card bg-gradient-to-br from-emerald-500 to-teal-600 text-center"
+              disabled={isScanning}
+              className="action-card bg-gradient-to-br from-emerald-500 to-teal-600 text-center disabled:opacity-50"
             >
               <Image className="w-8 h-8 text-white mx-auto mb-2" />
               <span className="font-semibold text-white">Gallery</span>
@@ -87,6 +103,7 @@ const UploadPage = () => {
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            capture="environment"
             onChange={handleFileSelect}
             className="hidden"
           />
@@ -126,7 +143,8 @@ const UploadPage = () => {
                   />
                   <button
                     onClick={() => setSelectedImage(null)}
-                    className="absolute top-6 right-6 w-8 h-8 rounded-full bg-destructive text-white flex items-center justify-center shadow-lg"
+                    disabled={isScanning}
+                    className="absolute top-6 right-6 w-8 h-8 rounded-full bg-destructive text-white flex items-center justify-center shadow-lg disabled:opacity-50"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -187,18 +205,27 @@ const UploadPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            whileHover={selectedImage ? { scale: 1.02 } : {}}
-            whileTap={selectedImage ? { scale: 0.98 } : {}}
+            whileHover={selectedImage && !isScanning ? { scale: 1.02 } : {}}
+            whileTap={selectedImage && !isScanning ? { scale: 0.98 } : {}}
             onClick={handleAnalyze}
-            disabled={!selectedImage}
+            disabled={!selectedImage || isScanning}
             className={`w-full mt-6 py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-3 transition-all duration-300 ${
-              selectedImage
+              selectedImage && !isScanning
                 ? "btn-gradient"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
             }`}
           >
-            <Scan className="w-5 h-5" />
-            🔍 Analyze Prescription
+            {isScanning ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Scan className="w-5 h-5" />
+                🔍 Analyze Prescription
+              </>
+            )}
           </motion.button>
         </div>
       </PageTransition>

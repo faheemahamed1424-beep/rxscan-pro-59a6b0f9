@@ -1,86 +1,103 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
+import { usePrescriptionScan, ScanResult } from "@/hooks/usePrescriptionScan";
+import { toast } from "sonner";
 
 interface ProcessingStep {
   id: number;
   label: string;
-  status: "pending" | "processing" | "completed";
-  progress?: number;
+  status: "pending" | "processing" | "completed" | "error";
 }
 
 const Processing = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { scanPrescription, isScanning, progress, currentStep, error, result } = usePrescriptionScan();
+  
   const [steps, setSteps] = useState<ProcessingStep[]>([
-    { id: 1, label: "Image preprocessing", status: "processing", progress: 0 },
+    { id: 1, label: "Image preprocessing", status: "processing" },
     { id: 2, label: "OCR text extraction", status: "pending" },
     { id: 3, label: "Text parsing", status: "pending" },
     { id: 4, label: "Medicine identification", status: "pending" },
   ]);
-  const [eta, setEta] = useState(12);
-  const [overallProgress, setOverallProgress] = useState(0);
+  const [eta, setEta] = useState(15);
+  const [hasStartedScan, setHasStartedScan] = useState(false);
+
+  // Get image from location state or sessionStorage
+  const imageBase64 = location.state?.imageBase64 || sessionStorage.getItem('scannedImage');
 
   useEffect(() => {
-    const simulateProcessing = () => {
-      let currentStep = 0;
-      let progress = 0;
+    if (!imageBase64) {
+      toast.error('No image found. Please upload a prescription first.');
+      navigate('/upload');
+      return;
+    }
 
-      const interval = setInterval(() => {
-        progress += 8;
-        setOverallProgress(Math.min(progress, 100));
+    // Check if we already have a result from the upload page
+    const storedResult = sessionStorage.getItem('scanResult');
+    if (storedResult) {
+      // Result already exists, just animate through and navigate
+      animateToCompletion();
+      return;
+    }
 
-        if (progress >= 25 && currentStep === 0) {
-          setSteps((prev) =>
-            prev.map((s, i) =>
-              i === 0
-                ? { ...s, status: "completed" }
-                : i === 1
-                ? { ...s, status: "processing", progress: 0 }
-                : s
-            )
-          );
-          currentStep = 1;
-        } else if (progress >= 55 && currentStep === 1) {
-          setSteps((prev) =>
-            prev.map((s, i) =>
-              i === 1
-                ? { ...s, status: "completed" }
-                : i === 2
-                ? { ...s, status: "processing" }
-                : s
-            )
-          );
-          currentStep = 2;
-        } else if (progress >= 80 && currentStep === 2) {
-          setSteps((prev) =>
-            prev.map((s, i) =>
-              i === 2
-                ? { ...s, status: "completed" }
-                : i === 3
-                ? { ...s, status: "processing" }
-                : s
-            )
-          );
-          currentStep = 3;
-        } else if (progress >= 100) {
-          setSteps((prev) =>
-            prev.map((s) => ({ ...s, status: "completed" }))
-          );
-          clearInterval(interval);
-          setTimeout(() => navigate("/results"), 500);
-        }
+    // Start the actual scan if we haven't already
+    if (!hasStartedScan) {
+      setHasStartedScan(true);
+      startScan();
+    }
+  }, [imageBase64, hasStartedScan]);
 
-        setEta(Math.max(0, 12 - Math.floor(progress / 8)));
-      }, 300);
+  const animateToCompletion = async () => {
+    const stepDelays = [400, 800, 1200, 1600];
+    
+    for (let i = 0; i < 4; i++) {
+      await new Promise(resolve => setTimeout(resolve, stepDelays[i] - (i > 0 ? stepDelays[i-1] : 0)));
+      setSteps(prev => prev.map((s, idx) => ({
+        ...s,
+        status: idx <= i ? 'completed' : idx === i + 1 ? 'processing' : 'pending'
+      })));
+      setEta(Math.max(0, 15 - (i + 1) * 4));
+    }
 
-      return interval;
-    };
+    setTimeout(() => navigate('/results'), 500);
+  };
 
-    const interval = simulateProcessing();
-    return () => clearInterval(interval);
-  }, [navigate]);
+  const startScan = async () => {
+    try {
+      const scanResult = await scanPrescription(imageBase64);
+      
+      // Store result for the results page
+      sessionStorage.setItem('scanResult', JSON.stringify(scanResult));
+      
+      // Mark all steps as completed
+      setSteps(prev => prev.map(s => ({ ...s, status: 'completed' })));
+      
+      setTimeout(() => navigate('/results'), 500);
+    } catch (err) {
+      console.error('Scan failed:', err);
+      setSteps(prev => prev.map((s, i) => ({
+        ...s,
+        status: i < currentStep ? 'completed' : i === currentStep ? 'error' : 'pending'
+      })));
+      toast.error('Failed to scan prescription. Please try again.');
+      setTimeout(() => navigate('/upload'), 2000);
+    }
+  };
+
+  // Update steps based on currentStep from hook
+  useEffect(() => {
+    if (currentStep > 0) {
+      setSteps(prev => prev.map((s, i) => ({
+        ...s,
+        status: i < currentStep - 1 ? 'completed' : i === currentStep - 1 ? 'processing' : 'pending'
+      })));
+      setEta(Math.max(0, 15 - currentStep * 4));
+    }
+  }, [currentStep]);
 
   return (
     <div className="min-h-screen gradient-bg flex flex-col items-center justify-center p-6">
@@ -119,7 +136,7 @@ const Processing = () => {
             className="text-center mb-8"
           >
             <h1 className="text-2xl font-bold text-white mb-2">Analyzing Prescription</h1>
-            <p className="text-white/70">Please wait while we process your image</p>
+            <p className="text-white/70">AI is extracting medicine information</p>
           </motion.div>
 
           {/* Progress Card */}
@@ -133,12 +150,12 @@ const Processing = () => {
             <div className="mb-6">
               <div className="flex justify-between text-sm mb-2">
                 <span className="font-medium text-foreground">Overall Progress</span>
-                <span className="text-primary font-semibold">{overallProgress}%</span>
+                <span className="text-primary font-semibold">{progress}%</span>
               </div>
               <div className="h-3 bg-muted rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${overallProgress}%` }}
+                  animate={{ width: `${progress}%` }}
                   className="h-full gradient-bg rounded-full"
                   transition={{ duration: 0.3 }}
                 />
@@ -161,6 +178,8 @@ const Processing = () => {
                         ? "bg-success text-white"
                         : step.status === "processing"
                         ? "bg-primary text-white"
+                        : step.status === "error"
+                        ? "bg-destructive text-white"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -195,6 +214,8 @@ const Processing = () => {
                       className={`text-sm font-medium ${
                         step.status === "pending"
                           ? "text-muted-foreground"
+                          : step.status === "error"
+                          ? "text-destructive"
                           : "text-foreground"
                       }`}
                     >
@@ -217,6 +238,8 @@ const Processing = () => {
                         ? "text-success"
                         : step.status === "processing"
                         ? "text-primary"
+                        : step.status === "error"
+                        ? "text-destructive"
                         : "text-muted-foreground"
                     }`}
                   >
@@ -224,6 +247,8 @@ const Processing = () => {
                       ? "✅"
                       : step.status === "processing"
                       ? "🔄"
+                      : step.status === "error"
+                      ? "❌"
                       : "⏳"}
                   </span>
                 </motion.div>
@@ -240,6 +265,17 @@ const Processing = () => {
               <span className="text-muted-foreground">Estimated time: </span>
               <span className="text-foreground font-semibold">{eta}s</span>
             </motion.div>
+
+            {/* Error message */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-4 p-3 rounded-xl bg-destructive/10 text-destructive text-sm text-center"
+              >
+                {error}
+              </motion.div>
+            )}
           </motion.div>
         </motion.div>
       </PageTransition>
