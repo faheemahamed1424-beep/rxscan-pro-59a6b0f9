@@ -1,16 +1,58 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Search, Filter, Plus, Calendar, Pill, Trash2 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { PageTransition } from "@/components/PageTransition";
-import { usePrescriptions } from "@/hooks/usePrescriptions";
+import { usePrescriptions, useDeletePrescription } from "@/hooks/usePrescriptions";
 import { format } from "date-fns";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
 
 const Prescriptions = () => {
   const navigate = useNavigate();
   const { data: prescriptions = [], isLoading } = usePrescriptions();
+  const deletePrescription = useDeletePrescription();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteName, setDeleteName] = useState<string>("");
 
   const totalMedicines = prescriptions.reduce((acc, p) => acc + p.medicines.length, 0);
+
+  const handleDeleteClick = (e: React.MouseEvent, id: string, name: string) => {
+    e.stopPropagation();
+    setDeleteId(id);
+    setDeleteName(name);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    
+    try {
+      await deletePrescription.mutateAsync(deleteId);
+      toast({
+        title: "Prescription Deleted",
+        description: "The prescription has been removed from your history.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete prescription. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteId(null);
+      setDeleteName("");
+    }
+  };
 
   return (
     <div className="page-container bg-background">
@@ -153,9 +195,19 @@ const Prescriptions = () => {
                         </div>
                       </div>
                     </div>
-                    <span className="status-badge status-success">
-                      Saved
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="status-badge status-success">
+                        Saved
+                      </span>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={(e) => handleDeleteClick(e, prescription.id, prescription.medicines[0]?.name || "Prescription")}
+                        className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center hover:bg-destructive/20 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </motion.button>
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -165,6 +217,27 @@ const Prescriptions = () => {
       </PageTransition>
 
       <BottomNav />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Prescription?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{deleteName}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletePrescription.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
