@@ -6,88 +6,101 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* Modern Healthcare SaaS Palette */
+    --background: 210 25% 98%;
+    --foreground: 215 25% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 215 25% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 215 25% 15%;
 
-    --primary: 217 91% 60%;
+    /* Soft medical blue */
+    --primary: 210 85% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 243 75% 59%;
+    /* Calm slate accent */
+    --secondary: 215 20% 65%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    /* Muted backgrounds */
+    --muted: 210 20% 95%;
+    --muted-foreground: 215 15% 45%;
 
-    --accent: 217 91% 60%;
+    /* Soft blue accent */
+    --accent: 205 90% 60%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 76% 36%;
+    --success: 152 70% 40%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    --warning: 38 90% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%;
+    /* Soft borders */
+    --border: 214 20% 90%;
+    --input: 214 20% 90%;
+    --ring: 210 85% 55%;
 
     --radius: 1rem;
 
-    /* Medical theme specific */
-    --gradient-start: 217 91% 60%;
-    --gradient-end: 243 75% 59%;
-    --glass: 0 0% 100% / 0.7;
-    --glass-border: 0 0% 100% / 0.3;
+    /* Healthcare theme specific */
+    --gradient-start: 210 85% 55%;
+    --gradient-end: 205 75% 50%;
+    --glass: 0 0% 100% / 0.85;
+    --glass-border: 210 20% 90%;
+    
+    /* Additional healthcare tokens */
+    --healthcare-light: 210 40% 96%;
+    --healthcare-soft: 205 30% 92%;
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
+    --background: 220 20% 10%;
+    --foreground: 210 30% 96%;
 
-    --card: 222 47% 15%;
-    --card-foreground: 210 40% 98%;
+    --card: 220 18% 14%;
+    --card-foreground: 210 30% 96%;
 
-    --popover: 222 47% 15%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 220 18% 14%;
+    --popover-foreground: 210 30% 96%;
 
-    --primary: 217 91% 60%;
+    --primary: 210 80% 58%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 243 75% 59%;
+    --secondary: 215 15% 50%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 220 15% 18%;
+    --muted-foreground: 215 15% 60%;
 
-    --accent: 217 91% 60%;
+    --accent: 205 85% 55%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 210 30% 96%;
 
-    --success: 142 76% 36%;
+    --success: 152 65% 38%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    --warning: 38 85% 48%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 213 27% 84%;
+    --border: 220 15% 22%;
+    --input: 220 15% 22%;
+    --ring: 210 75% 55%;
 
-    --gradient-start: 217 91% 50%;
-    --gradient-end: 243 75% 49%;
-    --glass: 222 47% 15% / 0.8;
-    --glass-border: 0 0% 100% / 0.1;
+    --gradient-start: 210 75% 50%;
+    --gradient-end: 205 70% 45%;
+    --glass: 220 18% 14% / 0.9;
+    --glass-border: 220 15% 25%;
+    
+    --healthcare-light: 220 15% 16%;
+    --healthcare-soft: 220 12% 20%;
   }
 }
 
@@ -104,31 +117,32 @@
 
 @layer components {
   .gradient-bg {
-    @apply bg-gradient-to-br from-primary to-secondary;
+    @apply bg-gradient-to-br from-primary to-accent;
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
   }
 
   .glass-card {
-    @apply bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl;
+    @apply bg-white/80 backdrop-blur-xl border border-border/50 shadow-lg;
   }
 
   .glass-card-solid {
-    @apply bg-card backdrop-blur-xl border border-border shadow-xl;
+    @apply bg-card backdrop-blur-xl border border-border shadow-lg;
   }
 
   .action-card {
-    @apply glass-card-solid rounded-2xl p-6 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] cursor-pointer;
+    @apply glass-card-solid rounded-2xl p-6 transition-all duration-300 
+           hover:shadow-xl hover:border-primary/20 hover:-translate-y-0.5 cursor-pointer;
   }
 
   .nav-item {
-    @apply flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200;
+    @apply flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200 relative;
   }
 
   .nav-item-active {
-    @apply bg-primary/10 text-primary;
+    @apply text-primary;
   }
 
   .nav-item-inactive {
@@ -136,35 +150,43 @@
   }
 
   .input-medical {
-    @apply w-full px-4 py-3 rounded-xl bg-muted/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all duration-200;
+    @apply w-full px-4 py-3 rounded-xl bg-muted/30 border border-border 
+           focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none 
+           transition-all duration-200 placeholder:text-muted-foreground/60;
   }
 
   .btn-gradient {
-    @apply gradient-bg text-primary-foreground font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98];
+    @apply bg-gradient-to-r from-primary to-accent text-primary-foreground 
+           font-semibold py-3 px-6 rounded-xl shadow-md 
+           hover:shadow-lg transition-all duration-300 
+           hover:-translate-y-0.5 active:translate-y-0;
   }
 
   .btn-glass {
-    @apply bg-white/20 backdrop-blur-sm border border-white/30 text-white font-medium py-3 px-6 rounded-xl hover:bg-white/30 transition-all duration-200;
+    @apply bg-white/20 backdrop-blur-sm border border-white/30 text-white 
+           font-medium py-3 px-6 rounded-xl hover:bg-white/30 transition-all duration-200;
   }
 
   .medicine-row {
-    @apply flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors duration-200;
+    @apply flex items-center justify-between p-4 rounded-xl bg-muted/20 
+           hover:bg-muted/40 transition-all duration-200 border border-transparent 
+           hover:border-border;
   }
 
   .status-badge {
-    @apply px-3 py-1 rounded-full text-sm font-medium;
+    @apply px-3 py-1.5 rounded-full text-xs font-medium tracking-wide;
   }
 
   .status-success {
-    @apply bg-success/10 text-success;
+    @apply bg-success/10 text-success border border-success/20;
   }
 
   .status-warning {
-    @apply bg-warning/10 text-warning;
+    @apply bg-warning/10 text-warning border border-warning/20;
   }
 
   .status-pending {
-    @apply bg-muted text-muted-foreground;
+    @apply bg-muted text-muted-foreground border border-border;
   }
 
   .page-container {
@@ -172,7 +194,22 @@
   }
 
   .section-header {
-    @apply text-lg font-semibold text-foreground mb-4;
+    @apply text-lg font-semibold text-foreground mb-4 tracking-tight;
+  }
+
+  /* Healthcare-specific components */
+  .healthcare-card {
+    @apply bg-card rounded-2xl border border-border shadow-sm 
+           hover:shadow-md transition-all duration-300;
+  }
+
+  .stat-card {
+    @apply text-center p-4 rounded-xl bg-muted/30 border border-border/50;
+  }
+
+  .notification-badge {
+    @apply absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full 
+           animate-pulse ring-2 ring-background;
   }
 }
 

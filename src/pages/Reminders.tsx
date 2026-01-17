@@ -1,31 +1,83 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Check, Clock, ChevronLeft, ChevronRight, Bell, BellOff } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { PageTransition } from "@/components/PageTransition";
+import { useNotifications } from "@/hooks/useNotifications";
+import { toast } from "@/hooks/use-toast";
 
 interface Reminder {
   id: number;
   time: string;
   medicines: string[];
   taken: boolean;
+  notificationEnabled: boolean;
 }
 
 const Reminders = () => {
   const navigate = useNavigate();
+  const { permission, requestPermission, scheduleReminder, cancelReminder, isGranted } = useNotifications();
+  
   const [reminders, setReminders] = useState<Reminder[]>([
-    { id: 1, time: "9:00 AM", medicines: ["Amoxicillin 500mg", "Paracetamol 650mg"], taken: true },
-    { id: 2, time: "3:00 PM", medicines: ["Paracetamol 650mg"], taken: false },
-    { id: 3, time: "9:00 PM", medicines: ["Amoxicillin 500mg"], taken: false },
+    { id: 1, time: "9:00 AM", medicines: ["Amoxicillin 500mg", "Paracetamol 650mg"], taken: true, notificationEnabled: false },
+    { id: 2, time: "3:00 PM", medicines: ["Paracetamol 650mg"], taken: false, notificationEnabled: false },
+    { id: 3, time: "9:00 PM", medicines: ["Amoxicillin 500mg"], taken: false, notificationEnabled: false },
   ]);
 
   const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const [selectedDay, setSelectedDay] = useState(2); // Wednesday
+  const [selectedDay, setSelectedDay] = useState(2);
+
+  // Schedule notifications for enabled reminders
+  useEffect(() => {
+    if (isGranted) {
+      reminders.forEach((reminder) => {
+        if (reminder.notificationEnabled && !reminder.taken) {
+          scheduleReminder(String(reminder.id), reminder.time, reminder.medicines);
+        }
+      });
+    }
+  }, [isGranted, reminders, scheduleReminder]);
+
+  const handleToggleNotification = async (id: number) => {
+    if (!isGranted) {
+      const granted = await requestPermission();
+      if (!granted) return;
+    }
+
+    setReminders((prev) =>
+      prev.map((r) => {
+        if (r.id === id) {
+          const newEnabled = !r.notificationEnabled;
+          if (newEnabled) {
+            scheduleReminder(String(id), r.time, r.medicines);
+            toast({
+              title: "Reminder Set",
+              description: `You'll be notified at ${r.time}`,
+            });
+          } else {
+            cancelReminder(String(id));
+            toast({
+              title: "Reminder Cancelled",
+              description: "Notification disabled for this reminder",
+            });
+          }
+          return { ...r, notificationEnabled: newEnabled };
+        }
+        return r;
+      })
+    );
+  };
 
   const handleMarkTaken = (id: number) => {
     setReminders((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, taken: true } : r))
+      prev.map((r) => {
+        if (r.id === id) {
+          cancelReminder(String(id));
+          return { ...r, taken: true, notificationEnabled: false };
+        }
+        return r;
+      })
     );
   };
 
@@ -155,14 +207,33 @@ const Reminders = () => {
                     </div>
 
                     {!reminder.taken && (
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleMarkTaken(reminder.id)}
-                        className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium"
-                      >
-                        Mark Taken
-                      </motion.button>
+                      <div className="flex items-center gap-2">
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => handleToggleNotification(reminder.id)}
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                            reminder.notificationEnabled
+                              ? "bg-primary/10 text-primary"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                          title={reminder.notificationEnabled ? "Disable notification" : "Enable notification"}
+                        >
+                          {reminder.notificationEnabled ? (
+                            <Bell className="w-5 h-5" />
+                          ) : (
+                            <BellOff className="w-5 h-5" />
+                          )}
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleMarkTaken(reminder.id)}
+                          className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
+                        >
+                          Mark Taken
+                        </motion.button>
+                      </div>
                     )}
                   </div>
                 </motion.div>
