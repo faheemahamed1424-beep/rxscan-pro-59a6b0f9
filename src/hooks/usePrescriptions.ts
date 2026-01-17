@@ -77,3 +77,24 @@ export const useSavePrescription = () => {
     },
   });
 };
+
+export const useDeletePrescription = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (prescriptionId: string) => {
+      if (!user) throw new Error("User not authenticated");
+
+      const { error } = await supabase
+        .from("prescriptions")
+        .delete()
+        .eq("id", prescriptionId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+    },
+  });
+};
