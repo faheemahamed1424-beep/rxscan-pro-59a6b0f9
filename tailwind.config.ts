@@ -58,6 +58,10 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        healthcare: {
+          light: "hsl(var(--healthcare-light))",
+          soft: "hsl(var(--healthcare-soft))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
