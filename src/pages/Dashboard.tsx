@@ -59,7 +59,7 @@ const Dashboard = () => {
     <div className="page-container bg-background">
       <PageTransition>
         {/* Header with soft gradient */}
-        <div className="bg-gradient-to-br from-primary via-primary to-accent px-6 pt-12 pb-20 rounded-b-[2.5rem] relative overflow-hidden">
+        <div className="bg-gradient-to-br from-primary via-primary to-accent px-6 pt-12 pb-24 rounded-b-[2.5rem] relative overflow-hidden">
           {/* Subtle pattern overlay */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-10 right-10 w-32 h-32 bg-white/20 rounded-full blur-3xl" />
@@ -95,7 +95,7 @@ const Dashboard = () => {
         </div>
 
         {/* Action Cards Grid */}
-        <div className="px-6 -mt-12">
+        <div className="px-6 -mt-14 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
