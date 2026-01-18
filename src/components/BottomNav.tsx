@@ -1,7 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Home, FileText, Bell, User } from "lucide-react";
-import { forwardRef } from "react";
 
 const navItems = [
   { path: "/dashboard", label: "Home", icon: Home },
@@ -10,13 +9,12 @@ const navItems = [
   { path: "/profile", label: "Profile", icon: User },
 ];
 
-export const BottomNav = forwardRef<HTMLElement, object>((_, ref) => {
+export const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
   return (
     <motion.nav
-      ref={ref}
       initial={{ y: 100 }}
       animate={{ y: 0 }}
       className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-xl border-t border-border shadow-lg"
@@ -49,6 +47,4 @@ export const BottomNav = forwardRef<HTMLElement, object>((_, ref) => {
       </div>
     </motion.nav>
   );
-});
-
-BottomNav.displayName = "BottomNav";
+};
