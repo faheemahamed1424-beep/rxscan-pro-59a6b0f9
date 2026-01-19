@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { PageTransition } from "@/components/PageTransition";
+import { useAuth } from "@/contexts/AuthContext";
 
 const menuItems = [
   { icon: User, label: "Personal Information", description: "Name, email, phone" },
@@ -25,6 +26,15 @@ const menuItems = [
 
 const Profile = () => {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "User";
+  const userEmail = user?.email || "No email";
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   return (
     <div className="page-container bg-background">
@@ -37,10 +47,10 @@ const Profile = () => {
             className="text-center"
           >
             <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-sm mx-auto mb-4 flex items-center justify-center border-4 border-white/30">
-              <span className="text-4xl">👨‍⚕️</span>
+              <span className="text-4xl">👤</span>
             </div>
-            <h1 className="text-2xl font-bold text-white">John Smith</h1>
-            <p className="text-white/70">john.smith@email.com</p>
+            <h1 className="text-2xl font-bold text-white">{displayName}</h1>
+            <p className="text-white/70">{userEmail}</p>
           </motion.div>
         </div>
 
@@ -125,7 +135,7 @@ const Profile = () => {
             transition={{ delay: 0.7 }}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => navigate("/")}
+            onClick={handleSignOut}
             className="w-full p-4 rounded-2xl bg-destructive/10 text-destructive font-medium flex items-center justify-center gap-3 hover:bg-destructive/20 transition-colors"
           >
             <LogOut className="w-5 h-5" />
