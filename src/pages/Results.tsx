@@ -1,32 +1,64 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CheckCircle2, Info, Bell, Save, ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, Info, Bell, Save, ArrowLeft, AlertCircle, Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { PageTransition } from "@/components/PageTransition";
 import { ScanResult, Medicine } from "@/hooks/usePrescriptionScan";
 import { useSavePrescription } from "@/hooks/usePrescriptions";
+import { useMedicineValidation, DrugInfo } from "@/hooks/useMedicineValidation";
 import { useToast } from "@/hooks/use-toast";
 
 const Results = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [validatedMedicines, setValidatedMedicines] = useState<Map<string, DrugInfo>>(new Map());
   const savePrescription = useSavePrescription();
+  const { validateMedicine, isValidating } = useMedicineValidation();
 
   useEffect(() => {
     const storedResult = sessionStorage.getItem('scanResult');
     if (storedResult) {
       try {
-        setScanResult(JSON.parse(storedResult));
+        const parsed = JSON.parse(storedResult);
+        setScanResult(parsed);
+        
+        // Validate each medicine against FDA database
+        if (parsed.medicines && parsed.medicines.length > 0) {
+          validateAllMedicines(parsed.medicines);
+        }
       } catch (e) {
         console.error('Failed to parse scan result:', e);
       }
     }
   }, []);
 
+  const validateAllMedicines = async (medicines: Medicine[]) => {
+    const results = new Map<string, DrugInfo>();
+    
+    for (const med of medicines) {
+      const info = await validateMedicine(med.name);
+      if (info) {
+        results.set(med.name.toLowerCase(), info);
+      }
+    }
+    
+    setValidatedMedicines(results);
+  };
+
   const medicines = scanResult?.medicines || [];
   const confidence = scanResult?.confidence || 0;
+
+  const getValidationStatus = (medicineName: string) => {
+    const info = validatedMedicines.get(medicineName.toLowerCase());
+    if (!info) return null;
+    return info.validated;
+  };
+
+  const getValidationInfo = (medicineName: string) => {
+    return validatedMedicines.get(medicineName.toLowerCase());
+  };
 
   const handleSave = async () => {
     if (!scanResult || medicines.length === 0) return;
@@ -58,6 +90,15 @@ const Results = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleViewDetails = (medicine: Medicine) => {
+    const validationInfo = getValidationInfo(medicine.name);
+    sessionStorage.setItem('selectedMedicine', JSON.stringify({
+      ...medicine,
+      fdaInfo: validationInfo
+    }));
+    navigate("/medicine-details");
   };
 
   return (
@@ -113,45 +154,95 @@ const Results = () => {
               transition={{ delay: 0.3 }}
               className="glass-card-solid rounded-3xl overflow-hidden"
             >
-              <div className="p-4 border-b border-border bg-muted/30">
+              <div className="p-4 border-b border-border bg-muted/30 flex items-center justify-between">
                 <h2 className="font-semibold text-foreground">Detected Medicines</h2>
+                {isValidating && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Validating...</span>
+                  </div>
+                )}
               </div>
 
               <div className="divide-y divide-border">
-                {medicines.map((medicine, index) => (
-                  <motion.div
-                    key={medicine.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 + index * 0.1 }}
-                    className="p-4"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="font-semibold text-foreground text-lg">
-                          {medicine.name}
-                        </h3>
-                        <span className="text-primary font-medium">{medicine.dosage}</span>
+                {medicines.map((medicine, index) => {
+                  const validationStatus = getValidationStatus(medicine.name);
+                  const fdaInfo = getValidationInfo(medicine.name);
+                  
+                  return (
+                    <motion.div
+                      key={medicine.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.4 + index * 0.1 }}
+                      className="p-4"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-foreground text-lg">
+                              {medicine.name}
+                            </h3>
+                            {validationStatus === true && (
+                              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/10 text-success text-xs font-medium">
+                                <ShieldCheck className="w-3 h-3" />
+                                FDA Verified
+                              </div>
+                            )}
+                            {validationStatus === false && (
+                              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/10 text-warning text-xs font-medium">
+                                <ShieldAlert className="w-3 h-3" />
+                                Not Found
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-primary font-medium">{medicine.dosage}</span>
+                          {fdaInfo?.validated && fdaInfo.genericName && fdaInfo.genericName !== medicine.name && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Generic: {fdaInfo.genericName}
+                            </p>
+                          )}
+                          {fdaInfo?.validated && fdaInfo.drugClass && fdaInfo.drugClass !== 'Not classified' && (
+                            <span className="inline-block mt-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs">
+                              {fdaInfo.drugClass}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleViewDetails(medicine)}
+                          className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
+                        >
+                          <Info className="w-5 h-5 text-primary" />
+                        </button>
                       </div>
-                      <span className="text-2xl">💊</span>
-                    </div>
 
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-muted/50 rounded-xl p-3 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Frequency</p>
-                        <p className="text-sm font-medium text-foreground">{medicine.frequency}</p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-muted/50 rounded-xl p-3 text-center">
+                          <p className="text-xs text-muted-foreground mb-1">Frequency</p>
+                          <p className="text-sm font-medium text-foreground">{medicine.frequency}</p>
+                        </div>
+                        <div className="bg-muted/50 rounded-xl p-3 text-center">
+                          <p className="text-xs text-muted-foreground mb-1">Duration</p>
+                          <p className="text-sm font-medium text-foreground">{medicine.duration}</p>
+                        </div>
+                        <div className="bg-muted/50 rounded-xl p-3 text-center">
+                          <p className="text-xs text-muted-foreground mb-1">When</p>
+                          <p className="text-sm font-medium text-foreground">{medicine.instructions}</p>
+                        </div>
                       </div>
-                      <div className="bg-muted/50 rounded-xl p-3 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">Duration</p>
-                        <p className="text-sm font-medium text-foreground">{medicine.duration}</p>
-                      </div>
-                      <div className="bg-muted/50 rounded-xl p-3 text-center">
-                        <p className="text-xs text-muted-foreground mb-1">When</p>
-                        <p className="text-sm font-medium text-foreground">{medicine.instructions}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
+
+                      {/* FDA Warnings */}
+                      {fdaInfo?.validated && fdaInfo.warnings && fdaInfo.warnings.length > 0 && (
+                        <div className="mt-3 p-3 rounded-xl bg-destructive/5 border border-destructive/20">
+                          <p className="text-xs font-medium text-destructive mb-1">⚠️ FDA Warnings</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {fdaInfo.warnings[0]}
+                          </p>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
               </div>
             </motion.div>
           ) : (
@@ -186,21 +277,8 @@ const Results = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
-              className="grid grid-cols-3 gap-3 mt-6"
+              className="grid grid-cols-2 gap-3 mt-6"
             >
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  sessionStorage.setItem('selectedMedicine', JSON.stringify(medicines[0]));
-                  navigate("/medicine-details");
-                }}
-                className="action-card flex flex-col items-center gap-2 py-4"
-              >
-                <Info className="w-6 h-6 text-primary" />
-                <span className="text-sm font-medium text-foreground">Details</span>
-              </motion.button>
-
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -208,7 +286,7 @@ const Results = () => {
                 className="action-card flex flex-col items-center gap-2 py-4"
               >
                 <Bell className="w-6 h-6 text-warning" />
-                <span className="text-sm font-medium text-foreground">Reminders</span>
+                <span className="text-sm font-medium text-foreground">Set Reminders</span>
               </motion.button>
 
               <motion.button
@@ -224,7 +302,7 @@ const Results = () => {
                   <Save className="w-6 h-6 text-white" />
                 )}
                 <span className="text-sm font-medium text-white">
-                  {savePrescription.isPending ? "Saving..." : "Save"}
+                  {savePrescription.isPending ? "Saving..." : "Save Prescription"}
                 </span>
               </motion.button>
             </motion.div>
@@ -247,7 +325,7 @@ const Results = () => {
                     {confidence >= 80 ? "High Accuracy" : confidence >= 50 ? "Moderate Accuracy" : "Low Accuracy"}
                   </h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Our AI analyzed your prescription with {confidence}% confidence. Always verify with your pharmacist.
+                    Medicines are validated against the FDA OpenFDA database. Always verify with your pharmacist.
                   </p>
                 </div>
               </div>
