@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
@@ -14,22 +15,38 @@ import {
 import { BottomNav } from "@/components/BottomNav";
 import { PageTransition } from "@/components/PageTransition";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePrescriptions } from "@/hooks/usePrescriptions";
+import { PersonalInfoDialog } from "@/components/profile/PersonalInfoDialog";
+import { NotificationsDialog } from "@/components/profile/NotificationsDialog";
+import { PrivacySecurityDialog } from "@/components/profile/PrivacySecurityDialog";
+import { AppearanceDialog } from "@/components/profile/AppearanceDialog";
+import { LanguageDialog } from "@/components/profile/LanguageDialog";
+import { HelpSupportDialog } from "@/components/profile/HelpSupportDialog";
 
-const menuItems = [
-  { icon: User, label: "Personal Information", description: "Name, email, phone" },
-  { icon: Bell, label: "Notifications", description: "Reminder preferences" },
-  { icon: Shield, label: "Privacy & Security", description: "Password, 2FA" },
-  { icon: Moon, label: "Appearance", description: "Theme settings" },
-  { icon: Globe, label: "Language", description: "English (US)" },
-  { icon: HelpCircle, label: "Help & Support", description: "FAQs, contact us" },
-];
+type DialogType = "personal" | "notifications" | "privacy" | "appearance" | "language" | "help" | null;
 
 const Profile = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { data: prescriptions = [] } = usePrescriptions();
+  const [openDialog, setOpenDialog] = useState<DialogType>(null);
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || "User";
   const userEmail = user?.email || "No email";
+
+  const totalMedicines = prescriptions.reduce((acc, p) => acc + p.medicines.length, 0);
+  const avgAccuracy = prescriptions.length > 0
+    ? Math.round(prescriptions.reduce((acc, p) => acc + (p.confidence_score || 0), 0) / prescriptions.length)
+    : 0;
+
+  const menuItems = [
+    { icon: User, label: "Personal Information", description: "Name, email, phone", dialog: "personal" as DialogType },
+    { icon: Bell, label: "Notifications", description: "Reminder preferences", dialog: "notifications" as DialogType },
+    { icon: Shield, label: "Privacy & Security", description: "Password, 2FA", dialog: "privacy" as DialogType },
+    { icon: Moon, label: "Appearance", description: "Theme settings", dialog: "appearance" as DialogType },
+    { icon: Globe, label: "Language", description: localStorage.getItem("language") === "en-US" ? "English (US)" : localStorage.getItem("language") || "English (US)", dialog: "language" as DialogType },
+    { icon: HelpCircle, label: "Help & Support", description: "FAQs, contact us", dialog: "help" as DialogType },
+  ];
 
   const handleSignOut = async () => {
     await signOut();
@@ -64,18 +81,18 @@ const Profile = () => {
           >
             <div className="flex items-center justify-around">
               <div className="text-center">
-                <div className="text-2xl font-bold gradient-text">12</div>
+                <div className="text-2xl font-bold gradient-text">{prescriptions.length}</div>
                 <p className="text-sm text-muted-foreground">Prescriptions</p>
               </div>
               <div className="h-10 w-px bg-border" />
               <div className="text-center">
-                <div className="text-2xl font-bold gradient-text">45</div>
-                <p className="text-sm text-muted-foreground">Doses Taken</p>
+                <div className="text-2xl font-bold gradient-text">{totalMedicines}</div>
+                <p className="text-sm text-muted-foreground">Medicines</p>
               </div>
               <div className="h-10 w-px bg-border" />
               <div className="text-center">
-                <div className="text-2xl font-bold gradient-text">98%</div>
-                <p className="text-sm text-muted-foreground">Adherence</p>
+                <div className="text-2xl font-bold gradient-text">{avgAccuracy}%</div>
+                <p className="text-sm text-muted-foreground">Accuracy</p>
               </div>
             </div>
           </motion.div>
@@ -112,6 +129,7 @@ const Profile = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 + index * 0.05 }}
+                onClick={() => setOpenDialog(item.dialog)}
                 className="w-full p-4 flex items-center gap-4 border-b border-border last:border-b-0 hover:bg-muted/50 transition-colors"
               >
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -155,6 +173,32 @@ const Profile = () => {
       </PageTransition>
 
       <BottomNav />
+
+      {/* Dialogs */}
+      <PersonalInfoDialog 
+        open={openDialog === "personal"} 
+        onOpenChange={(open) => !open && setOpenDialog(null)} 
+      />
+      <NotificationsDialog 
+        open={openDialog === "notifications"} 
+        onOpenChange={(open) => !open && setOpenDialog(null)} 
+      />
+      <PrivacySecurityDialog 
+        open={openDialog === "privacy"} 
+        onOpenChange={(open) => !open && setOpenDialog(null)} 
+      />
+      <AppearanceDialog 
+        open={openDialog === "appearance"} 
+        onOpenChange={(open) => !open && setOpenDialog(null)} 
+      />
+      <LanguageDialog 
+        open={openDialog === "language"} 
+        onOpenChange={(open) => !open && setOpenDialog(null)} 
+      />
+      <HelpSupportDialog 
+        open={openDialog === "help"} 
+        onOpenChange={(open) => !open && setOpenDialog(null)} 
+      />
     </div>
   );
 };
